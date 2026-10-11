@@ -14,6 +14,10 @@ The 3D Lab loads Three.js from a public CDN, so the host needs outbound
 internet. The Study Focus generator only works inside the claude.ai artifact;
 on other hosts it shows a "tutor not available" note and everything else runs.
 
+## Embedding and dark mode
+
+The app has built-in light and dark themes that an embedding page can control through the iframe URL or `postMessage`. See [BASE44.md](BASE44.md) for the exact instructions and a prompt to paste into Base44's agent.
+
 ## Rules of use
 
 The app opens with an acknowledgement that it is a study tool and must never

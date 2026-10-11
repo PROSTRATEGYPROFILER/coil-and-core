@@ -1,4 +1,38 @@
 <title>Coil &amp; Core</title>
+<meta name="color-scheme" content="light dark">
+<script>
+/* Theme bridge. Sources, highest priority first:
+   1. ?theme=dark|light|auto in the URL (an embedding page sets this on the iframe src)
+   2. a postMessage {type:"coilcore:set-theme", theme} from the embedding page
+   3. the viewer's own choice in the header switch, remembered in localStorage
+   4. the device's light/dark setting
+   "auto" means follow the device. */
+(function(){
+  var KEY = "coilcore.theme", el = document.documentElement, urlTheme = null;
+  try{ var q = new URLSearchParams(location.search).get("theme"); if(q === "dark" || q === "light" || q === "auto") urlTheme = q; }catch(e){}
+  function stored(){ try{ var v = localStorage.getItem(KEY); return v === "dark" || v === "light" ? v : "auto"; }catch(e){ return "auto"; } }
+  function resolved(t){ return t === "auto" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : t; }
+  function apply(t){
+    if(t === "dark" || t === "light"){ el.dataset.theme = t; el.style.colorScheme = t; }
+    else { delete el.dataset.theme; el.style.colorScheme = ""; }
+    window.__coilTheme = t;
+    try{ window.dispatchEvent(new CustomEvent("coilcore:themechange", {detail:{theme:t, resolved:resolved(t)}})); }catch(e){}
+    try{ if(window.parent !== window) window.parent.postMessage({type:"coilcore:theme", theme:t, resolved:resolved(t)}, "*"); }catch(e){}
+  }
+  window.coilSetTheme = function(t, persist){
+    if(t !== "dark" && t !== "light") t = "auto";
+    if(persist){ try{ if(t === "auto") localStorage.removeItem(KEY); else localStorage.setItem(KEY, t); }catch(e){} }
+    apply(t);
+  };
+  window.addEventListener("message", function(e){
+    var d = e.data; if(!d || typeof d !== "object") return;
+    if(d.type === "coilcore:set-theme") window.coilSetTheme(d.theme, false);
+    if(d.type === "coilcore:get-theme" && e.source){ try{ e.source.postMessage({type:"coilcore:theme", theme:window.__coilTheme, resolved:resolved(window.__coilTheme)}, "*"); }catch(x){} }
+  });
+  try{ matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function(){ if(window.__coilTheme === "auto") apply("auto"); }); }catch(e){}
+  apply(urlTheme || stored());
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -1371,6 +1405,11 @@ td.sym .m{background:none;border:0;padding:0;color:inherit}
 .ackCheck input{margin-top:3px;width:18px;height:18px}
 .ackBtn{padding:10px 18px;border-radius:999px;border:1px solid var(--copper);background:var(--copper);color:#fff;font:600 14px "IBM Plex Sans",sans-serif;cursor:pointer}
 .ackBtn:disabled{opacity:.45;cursor:not-allowed}
+.themeSw{display:inline-flex;gap:2px;margin-top:8px;padding:2px;border:1px solid var(--line);border-radius:999px;background:var(--surface-2)}
+.themeSw button{padding:4px 10px;border:0;border-radius:999px;background:transparent;color:var(--muted);font:600 11px "IBM Plex Sans",sans-serif;cursor:pointer}
+.themeSw button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.themeSw button:focus-visible{outline:2px solid var(--copper);outline-offset:1px}
+html.embed-hide-theme .themeSw{display:none}
 </style>
 
 <div class="wrap">
@@ -1380,6 +1419,9 @@ td.sym .m{background:none;border:0;padding:0;color:inherit}
       <p class="eyebrow">Electrical Apprenticeship &middot; Intermediate Theory</p>
       <h1>Coil &amp; Core</h1>
       <p class="sub">Electrical theory drill &mdash; magnetism, AC circuits (Units 15&ndash;24), DC generators, PLC basics, motor control centres</p>
+      <div class="themeSw" id="themeSw" role="group" aria-label="Colour theme">
+        <button type="button" data-th="auto">Auto</button><button type="button" data-th="light">Light</button><button type="button" data-th="dark">Dark</button>
+      </div>
     </div>
     <div class="modes" role="tablist" aria-label="View">
       <button id="tabCards" role="tab" aria-selected="true">Flashcards</button>
@@ -7450,6 +7492,16 @@ document.addEventListener("click", e => {
 window.symLegendFor = showSymLegend;
 window.symLegendKeys = (keys, anchor) => showSymLegend("", anchor, keys);
 window.symLegendRows = symLegend;
+
+/* --- theme switch in the header (the bridge itself runs in <head>) --- */
+(() => {
+  const sw = $("themeSw"); if(!sw) return;
+  try{ if(new URLSearchParams(location.search).get("themeSwitch") === "hide") document.documentElement.classList.add("embed-hide-theme"); }catch(e){}
+  const paint = () => sw.querySelectorAll("[data-th]").forEach(b => b.setAttribute("aria-pressed", b.dataset.th === (window.__coilTheme || "auto") ? "true" : "false"));
+  sw.querySelectorAll("[data-th]").forEach(b => b.addEventListener("click", () => { window.coilSetTheme(b.dataset.th, true); paint(); }));
+  window.addEventListener("coilcore:themechange", paint);
+  paint();
+})();
 
 /* --- boot --- */
 /* one-time acknowledgement that this is a study tool, never an exam aid; re-shown every 90 days */
@@ -18514,7 +18566,8 @@ ${svgArmReaction}
   function vColor(v){
     const src = els.filter(e => e.t === "v" || e.t === "a"); const vmax = Math.max(1, ...src.map(e => Math.abs(e.v)));
     const t = Math.max(-1, Math.min(1, v/vmax));
-    const dark = matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light";
+    const th = document.documentElement.dataset.theme;
+    const dark = th === "dark" || (th !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
     const base = dark ? [120, 140, 160] : [110, 125, 140];
     const pos = [40, 170, 90], neg = [200, 60, 60];
     const to = t >= 0 ? pos : neg, a = Math.abs(t);
