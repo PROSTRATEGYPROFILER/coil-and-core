@@ -20,6 +20,8 @@ The app opens with an acknowledgement that it is a study tool and must never
 be used during a test, exam or other assessment. The same notice sits in the
 page footer.
 
-## Live copy
+## Where it lives
 
-https://claude.ai/artifact/MZDjkwg1q2XarhX4iTS1Mp (private alpha)
+- Official site: https://coilandcore.com (Base44, embedding the GitHub Pages build)
+- GitHub Pages build: https://prostrategyprofiler.github.io/coil-and-core/ (redeploys on every push to `main`)
+- Private alpha with the Study Focus tutor: https://claude.ai/artifact/MZDjkwg1q2XarhX4iTS1Mp
